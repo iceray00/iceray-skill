@@ -6,32 +6,32 @@
 
 | 依赖 | 用途 | 检查 |
 |---|---|---|
-| Claude Code | 主脑会话（建议 Fable 5.2 或 Opus 5.5） | `claude --version` |
 | paseo（daemon 在运行） | 启动和管理工人 / 监工 agent | `paseo status` |
+| Claude Code | 主脑会话（建议 Fable 5.2 或 Opus 5.5） | `claude --version` |
 | Codex，能用 `gpt-6.2-sol`、`gpt-6.2-astra` | 工人，所有实现都由它做 | `paseo provider models codex` |
 | paseo 的 claude provider 下有 `deepseek-flash` | 监工（可选，没有就只能用直接派工） | `paseo provider models claude` |
-| `bash`、`jq`、`perl`、`git` | 脚本用到 | `command -v jq perl git` |
+| `bash`、`jq`、`perl`、`git`、`python3` | 脚本用到 | `command -v jq perl git python3` |
+| paseo 自带的 **paseo** skill | 本 skill 的 Prerequisites 会让主脑先读它（可选，没装也能跑） | `ls ~/.claude/skills/paseo/SKILL.md` |
 
-缺依赖时不要替用户安装或改它们的配置（模型、密钥、provider），把缺什么告诉用户。
+缺依赖时不要替用户安装或改它们的配置（模型、密钥、provider、paseo 的 skill 选择），把缺什么告诉用户。
 
 ## 安装
 
 ```bash
 git clone https://github.com/iceray00/iceray-skill.git
-bash iceray-skill/install.sh fable5.2-working-paseo
+bash iceray-skill/install.sh --agents fable5.2-working-paseo
 ```
 
-只是把目录复制到 `<配置目录>/skills/fable5.2-working-paseo/`。**不注册钩子，不改 `settings.json`，不往配置目录写任何别的东西** —— 这个 skill 没被调用时，对其他会话没有任何影响。不要自己给它加钩子。
+paseo 自带的 skill 装在两个位置，这条命令照样各放一份：
 
-**也给 paseo 里的其他 agent 用**（可选，用户要求时才做）：paseo 自带的 skill 除了 `~/.claude/skills/`，还装在 `~/.agents/skills/`（Codex 等 provider 从这里读）。同样复制一份即可：
+- `<Claude Code 配置目录>/skills/fable5.2-working-paseo/` —— Claude Code agent 读这里（配置目录取 `$CLAUDE_CONFIG_DIR`，未设置则 `~/.claude`，也可用 `--config-dir` 指定）。
+- `~/.agents/skills/fable5.2-working-paseo/` —— Codex 等 provider 读这里。只在 Claude Code 里用的话，去掉 `--agents` 就不装这一份。
 
-```bash
-mkdir -p ~/.agents/skills && rm -rf ~/.agents/skills/fable5.2-working-paseo \
-  && cp -R iceray-skill/fable5.2-working-paseo ~/.agents/skills/ \
-  && chmod +x ~/.agents/skills/fable5.2-working-paseo/scripts/*
-```
+两处是两份拷贝，更新时重跑同一条命令。
 
-两处是两份拷贝，更新时两处都要重装。
+**不注册钩子，不改 `settings.json`，不改 paseo 的配置** —— 这个 skill 没被调用时，对其他会话没有任何影响。不要自己给它加钩子。
+
+**不要把它放进 paseo 的安装包**（`@getpaseo/server` 里的 `skills/` 目录），也不要写 `.paseo-managed-files.json`：那里的东西归 paseo 管，升级会整个换掉。本 skill 的名字不在 paseo 管理的名单里，paseo 同步、卸载自带 skill 时不会碰它。
 
 ## 验证
 
@@ -40,6 +40,7 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SK="$CFG/skills/fable5.2-working-paseo"
 
 ls -l "$SK/SKILL.md" "$SK/scripts/"      # 文件在，scripts/*.sh 可执行
+ls ~/.agents/skills/fable5.2-working-paseo/SKILL.md    # 用了 --agents 时
 
 # 预检 paseo 和模型：在一个临时目录里跑，[FAIL] 表示缺依赖
 d="$(mktemp -d)" && bash "$SK/scripts/activate.sh" "$d"; rm -rf "$d"
@@ -48,26 +49,27 @@ d="$(mktemp -d)" && bash "$SK/scripts/activate.sh" "$d"; rm -rf "$d"
 bash "$SK/scripts/check-session.sh" --audit
 ```
 
-`check-session.sh` 读 `$PASEO_HOME/agents/`（未设置时是 `~/.paseo/agents/`）；paseo 的 home 不在默认位置时，确认 `PASEO_HOME` 在 Claude Code 的环境里。
+`check-session.sh` 读 `$PASEO_HOME/agents/`（未设置时是 `~/.paseo/agents/`）；paseo 的 home 不在默认位置时，确认 `PASEO_HOME` 在 agent 的环境里。
 
 ## 装完告诉用户
 
-- 已经开着的 Claude Code 会话要**重启**才会加载这个 skill。
-- 用法：在项目里输入 `/fable5.2-working-paseo`，或者说“用总管流程”“派给 codex 做”。
+- 已经开着的 agent 会话要**重启**才会加载这个 skill。
+- 用法：在 paseo agent 里输入 `/fable5.2-working-paseo <任务>`，或者说“用总管流程”“派给 codex 做”。可选参数：`--supervised`（任务都交给监工盯）、`--profile <name>`（工人用 paseo 里配好的某个 agent profile 启动）。
 - 这个流程会在项目里建一个 `.fable-working/` 目录（计划、账本、brief），并自动把它加进该仓库的 `.git/info/exclude`，不会被提交。
 - 上下文压缩后的重读靠 skill 自己的规则和账本开头的指引，不靠钩子。
+- 它不会出现在 paseo 设置页的 Skills 列表里（那里只列 paseo 安装包自带的）。
 - 把预检里的 `[warn]` / `[FAIL]` 原样转告用户。
 
 ## 手动安装
 
-把 `fable5.2-working-paseo/` 整个目录复制到 `<配置目录>/skills/fable5.2-working-paseo/`，然后 `chmod +x <配置目录>/skills/fable5.2-working-paseo/scripts/*.sh`。
+把 `fable5.2-working-paseo/` 整个目录复制到 `<配置目录>/skills/fable5.2-working-paseo/`（需要时再复制一份到 `~/.agents/skills/fable5.2-working-paseo/`），然后给两处的 `scripts/*.sh` 加可执行权限。
 
 只给单个项目装：复制到 `<项目>/.claude/skills/fable5.2-working-paseo/`。脚本都按自己的位置定位，不依赖安装路径。
 
 ## 卸载
 
 ```bash
-rm -rf "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/fable5.2-working-paseo"
+rm -rf "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/fable5.2-working-paseo" ~/.agents/skills/fable5.2-working-paseo
 ```
 
 没有别的东西要清理。各项目里的 `.fable-working/` 是工作记录，删不删由用户决定。

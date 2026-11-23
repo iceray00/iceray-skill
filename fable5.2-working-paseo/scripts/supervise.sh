@@ -18,7 +18,7 @@ FW_SKILL_DIR="$SKILL_DIR" FW_TASK="$task" FW_MODEL="$model" FW_BRIEF="$brief" \
 
 out="$(paseo run \
   --provider "${FW_SUPERVISOR:-claude/deepseek-flash}" --mode bypassPermissions \
-  --title "fw:$task:supervisor" --label fw=supervisor --label "task=$task" \
+  --title "[Supervisor] $task" --label fw=supervisor --label "task=$task" \
   --no-wait --json "$@" -- "$(cat "$sup")")"
 id="$(printf '%s' "$out" | jq -r '.agentId // empty' 2>/dev/null || true)"
 [ -n "$id" ] || { echo "启动监工失败，paseo 输出:" >&2; printf '%s\n' "$out" >&2; exit 1; }

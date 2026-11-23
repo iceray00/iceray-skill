@@ -5,8 +5,7 @@ iceray 的 Claude Code skill 合集。每个顶层目录是一个独立的 skill
 | Skill | 做什么 |
 |---|---|
 | [`fable5.2-working`](fable5.2-working/README.md) | 多 agent 总管工作流：Claude Code（Fable 5.2 / Opus 5.5）当主脑做策划、提问和验收，实现全部经 paseo 派给 Codex，429 自动续做 |
-| [`fable5.2-working-paseo`](fable5.2-working-paseo/README.md) | 上一个的 paseo 加固版：只用命令行 `paseo run` 开 agent、核对子 agent 没有共用主脑的 Claude Code 会话、监工回报一次就结束、重启后补挂守候和读回分支 |
-| [`paseo-fable5.2-working`](paseo-fable5.2-working/README.md) | 上一个做成 paseo 编排 skill 的样子：`paseo-` 前缀、`/paseo-fable5.2-working <任务>` 带参数调用、Prerequisites / Hard rules / Workflow 骨架、可用 paseo 的 agent profile，和 paseo 自带的 skill 装在同样的两个位置 |
+| [`fable5.2-working-paseo`](fable5.2-working-paseo/README.md) | 上一个的 paseo 版，写成 paseo 编排 skill 的样子：`/fable5.2-working-paseo <任务>` 带参数调用、Prerequisites / Hard rules / Workflow 骨架、可用 paseo 的 agent profile，和 paseo 自带的 skill 装在同样的两个位置。并且避开 paseo 的会话陷阱：只用命令行 `paseo run` 开 agent、核对子 agent 没有共用主脑的 Claude Code 会话、监工回报一次就结束、重启后补挂守候和读回分支 |
 
 ## 安装
 

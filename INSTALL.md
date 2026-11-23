@@ -23,6 +23,8 @@ bash iceray-skill/install.sh <skill>          # 可以一次写多个；--all �
 
 它只做一件事：把 `<skill>/` 复制到 `<配置目录>/skills/<skill>/`（已有同名安装会被覆盖）。配置目录取 `$CLAUDE_CONFIG_DIR`，未设置则是 `~/.claude`；也可以用 `--config-dir <目录>` 指定。用户的 Claude Code 不用默认配置目录时，先确认是哪个再装。
 
+加 `--agents` 会另外复制一份到 `~/.agents/skills/<skill>/`（paseo 自带的 skill 也装在这里，Codex 等 provider 从这里读）。只在该 skill 的 `INSTALL.md` 这样写、或用户要求时才加。
+
 安装不改 `settings.json`，不注册钩子，不动其他 skill。
 
 ## 4. 验证

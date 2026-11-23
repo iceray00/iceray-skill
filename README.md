@@ -6,6 +6,7 @@ iceray 的 Claude Code skill 合集。每个顶层目录是一个独立的 skill
 |---|---|
 | [`fable5.2-working`](fable5.2-working/README.md) | 多 agent 总管工作流：Claude Code（Fable 5.2 / Opus 5.5）当主脑做策划、提问和验收，实现全部经 paseo 派给 Codex，429 自动续做 |
 | [`fable5.2-working-paseo`](fable5.2-working-paseo/README.md) | 上一个的 paseo 加固版：只用命令行 `paseo run` 开 agent、核对子 agent 没有共用主脑的 Claude Code 会话、监工回报一次就结束、重启后补挂守候和读回分支 |
+| [`paseo-fable5.2-working`](paseo-fable5.2-working/README.md) | 上一个做成 paseo 编排 skill 的样子：`paseo-` 前缀、`/paseo-fable5.2-working <任务>` 带参数调用、Prerequisites / Hard rules / Workflow 骨架、可用 paseo 的 agent profile，和 paseo 自带的 skill 装在同样的两个位置 |
 
 ## 安装
 
@@ -15,7 +16,7 @@ bash iceray-skill/install.sh --list            # 看有哪些 skill
 bash iceray-skill/install.sh fable5.2-working  # 装其中一个（可写多个，--all 装全部）
 ```
 
-只复制文件，不改 `settings.json`、不加钩子。skill 会被复制到 `~/.claude/skills/<skill>/`（设了 `CLAUDE_CONFIG_DIR` 则在其下，也可用 `--config-dir` 指定）。装完重启 Claude Code，输入 `/<skill 名>` 使用。
+只复制文件，不改 `settings.json`、不加钩子。skill 会被复制到 `~/.claude/skills/<skill>/`（设了 `CLAUDE_CONFIG_DIR` 则在其下，也可用 `--config-dir` 指定）。加 `--agents` 会另外装一份到 `~/.agents/skills/<skill>/`，给 paseo 里的 Codex 等 agent 用。装完重启 Claude Code，输入 `/<skill 名>` 使用。
 
 **让 AI 替你装**：把 [INSTALL.md](INSTALL.md) 交给它。各 skill 特有的依赖和验证方法在它自己目录的 `INSTALL.md` 里。
 

@@ -30,6 +30,7 @@
 
 和 paseo 自带 skill 不一样的一处是有意的：开 agent、发消息、等待只走 `scripts/` 里的命令行脚本，不用工具接口 `create_agent`。理由一是 paseo 的会话陷阱（工具接口开的 Claude Code 子 agent 会写进主脑的会话文件），二是 429 续做和卡住打断都在 `watch.sh` 里，paseo 的完成通知管不了这两件事。后台 `watch.sh` 的退出就是本流程的“完成通知”。
 
+- **每个任务一个工作文件夹**：工人的临时产出放在 `.tmp/.fable-working/<名字>/`，名字就是 paseo 子会话名；和已有任务是同一件事时先问用户要不要合并。
 - **主脑不写业务代码**，只写 `.fable-working/` 下的计划、账本和 brief；验收靠自己读改动、重跑命令，工人的汇报只当证据。
 - **向人提问**：少量问题当场问；成批的边界问题写成 `.fable-working/questions.md` 让多人一起回答。
 - **429 自动续做**：`watch.sh` 遇到限流会退避后让同一个工人从中断处继续；其他错误立刻交回主脑。
@@ -54,6 +55,7 @@ bash iceray-skill/install.sh --agents fable5.2-working-paseo
 SKILL.md                    主脑规则（paseo skill 格式）
 scripts/activate.sh         建 .fable-working/、预检 paseo 与模型
 scripts/dispatch.sh         派一个工人（默认 Codex；也接受 provider/模型）
+scripts/workdir.sh          工作文件夹 .tmp/.fable-working/<名字>/（名字 = paseo 会话名 [Worker] <名字>）：列出 / 新建 / 记录
 scripts/supervise.sh        派一个监工，由它去派工人并盯到做完
 scripts/watch.sh            守候 agent：429 续做、卡住打断、其他错误返回；拒绝给与主脑共用会话的 agent 发消息
 scripts/check-session.sh    查 paseo agent 是否和主脑共用 Claude Code 会话文件（--caller / --audit）

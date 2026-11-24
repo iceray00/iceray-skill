@@ -19,7 +19,7 @@ argument-hint: "[--supervised] [--profile <name>] <任务或目标>"
 
 1. 用 Read 重新**完整**读取本文件（`$SK/SKILL.md`；路径也记在账本开头）。
 2. Read `.fable-working/ledger.md` 和 `.fable-working/plan.md`。
-3. `paseo ls --label fw=worker` 与账本对账：账本里 `in_progress` 的任务，agent 实际是什么状态。
+3. `paseo ls --label fw=worker` 与账本对账（`bash $SK/scripts/workdir.sh list` 看各工作文件夹的 `TASK.md`）：账本里 `in_progress` 的任务，agent 实际是什么状态。
 4. 账本与实际不一致时，先停止派工，按 agent 实况和工人证据修正账本，再继续。
 5. **后台守候要补回**：Paseo 重启、主脑重启都会带走主脑挂在后台的 `watch.sh`。账本里每个 `in_progress` 的任务，如果对应 agent 还在跑、而本会话里没有它的后台守候，就重新挂一次 `bash $SK/scripts/watch.sh <id>`（后台运行）。
 6. 摘要或对话里出现你不记得的提示词、成串的 `continue`、或者一段时间的上下文整个不见了：多半是主脑接到了别的 agent 的分支上（见「Paseo 会话陷阱」）。先别照着那些内容做事，用 `python3 $SK/scripts/session_branches.py branches <会话文件> <主干最后一条的时间>` 列出分支，`… chain <会话文件> <那条分支最后一条的时间> <从哪时起>` 读回自己那条分支，再告诉用户发生了什么。会话文件在 `~/.claude/projects/<项目>/<CLAUDE_CODE_SESSION_ID>.jsonl`。
@@ -34,7 +34,7 @@ argument-hint: "[--supervised] [--profile <name>] <任务或目标>"
 - **用户点名了 profile**（`--profile <name>`）：调用 `list_profiles`，读它的 `notes`，按 paseo skill 的规则展开后交给派工脚本 —— `provider/model` 作为第二个参数，`thinkingOptionId` → `FW_THINKING`，`modeId` → `FW_MODE`：
 
   ```bash
-  FW_THINKING=<thinkingOptionId> FW_MODE=<modeId> bash $SK/scripts/dispatch.sh T3 <provider>/<model> .fable-working/briefs/T3.md
+  FW_THINKING=<thinkingOptionId> FW_MODE=<modeId> bash $SK/scripts/dispatch.sh T3 <provider>/<model> .fable-working/briefs/T3.md --workdir <名字>
   ```
 
   profile 只是启动配置，用完不记；没有 `list_profiles` 工具、或找不到这个名字，就告诉用户并退回默认。
@@ -86,6 +86,7 @@ bash $SK/scripts/activate.sh        # 在项目根目录执行
 .fable-working/questions.md   给人回答的边界问题
 .fable-working/briefs/        每次派工 / 返工的 brief 原文
 .fable-working/lessons.md     有证据的教训
+.tmp/.fable-working/<名字>/   每个工人任务的工作文件夹（见 §3「工作文件夹」）
 ```
 
 ### 1. 策划
@@ -120,15 +121,28 @@ bash $SK/scripts/activate.sh        # 在项目根目录执行
 
 复制 `$SK/templates/worker-brief.md` 到 `.fable-working/briefs/<任务ID>.md` 并填满。brief 必须自足：目标、背景、文件范围、验收标准、禁止事项、汇报格式。派之前自查一遍：只看这份 brief，一个没参与对话的人能不能做对？
 
+#### 工作文件夹
+
+每个派出去的任务都有自己的工作文件夹 `<项目根>/.tmp/.fable-working/<名字>/`，工人（和监工）的临时文件、日志、中间产出都放在里面。`<名字>` 同时就是 paseo 子会话的名字：工人标题 `[Worker] <名字>`，监工标题 `[Supervisor] <名字>`，不是 paseo 默认拿 prompt 内容当的标题。
+
+1. **起名**：主脑给任务起一个短名字，说清是什么活，例如 `pa-offset-probe`、`st3-release-fix`（字母、数字、`. _ -`，≤48 字符）。不要用 prompt 内容，也尽量不要只用 `T3` 这种编号（不给 `--workdir` 时才退回任务ID）。
+2. **派工前先对照已有任务**：`bash $SK/scripts/workdir.sh list` 列出 `.tmp/.fable-working/` 下已有的文件夹和各自的任务、目标。
+   - 这次的任务和某个已有任务**是同一件事**（同一个目标、同一个问题的延续）→ 先问用户一句：并入已有的 `<名字>`，还是新建。用户同意并入 → 派工时加 `--workdir <已有名字> --merge`；不同意 → 起新名字。
+   - **不一样** → 不用问，直接用新名字派，脚本会新建文件夹。
+   - 只是碰到同一批文件不算同一件事。同一任务的返工发给同一个工人，本来就在原文件夹里，不用问。
+3. 脚本兜底：名字已被**别的任务ID**占用而没加 `--merge` 时，`dispatch.sh` / `supervise.sh` 拒绝派工（退出码 3）—— 回到第 2 步问用户。
+4. 文件夹里的 `TASK.md` 记着会话名、任务ID、目标、建立时间和派过的 agent，脚本自动追加；主脑不用手写。
+5. 脚本会把项目根和工作文件夹写在 brief 最前面告诉工人，并把 `--cwd` 设成工作文件夹（从 paseo agent 里派时 `--cwd` 不生效，靠 brief 里那段说明兜底）。项目代码仍在项目根下按文件范围改。
+
 #### 两种派工方式
 
 **A. 直接派（默认，短任务）**
 
 ```bash
-id=$(bash $SK/scripts/dispatch.sh T3 sol .fable-working/briefs/T3.md)
+id=$(bash $SK/scripts/dispatch.sh T3 sol .fable-working/briefs/T3.md --workdir pa-offset-probe)
 ```
 
-拿到 agent id 后**立刻**写进账本（状态 `in_progress`、agent id、brief 路径、派出时的 `git rev-parse HEAD`），然后**在后台**启动守候（Claude Code：Bash 的 run_in_background）：
+拿到 agent id 后**立刻**写进账本（状态 `in_progress`、agent id、工作文件夹名、brief 路径、派出时的 `git rev-parse HEAD`），然后**在后台**启动守候（Claude Code：Bash 的 run_in_background）：
 
 ```bash
 bash $SK/scripts/watch.sh <agent-id>
@@ -147,15 +161,15 @@ bash $SK/scripts/watch.sh <agent-id>
 **B. 监工派（长任务、多步骤任务、429 频繁、或用户给了 `--supervised`）**
 
 ```bash
-id=$(bash $SK/scripts/supervise.sh T3 sol .fable-working/briefs/T3.md)
+id=$(bash $SK/scripts/supervise.sh T3 sol .fable-working/briefs/T3.md --workdir pa-offset-probe)
 ```
 
-它用 `$SK/templates/supervisor-brief.md` 生成 `.fable-working/briefs/T3.supervisor.md`，再以 `claude/deepseek-flash` 启动监工，输出监工的 agent id。账本里记监工 id；工人 id 之后用 `paseo ls --label task=T3` 查到再补上。同样用后台 `watch.sh <监工id>` 守候。监工比脚本多做的事：工人中途停下、问了 brief 里已有答案的问题、或没做完就收工时，催它继续。
+它用 `$SK/templates/supervisor-brief.md` 生成 `.fable-working/briefs/T3.supervisor.md`，再以 `claude/deepseek-flash` 启动监工（监工和它派的工人共用同一个工作文件夹），输出监工的 agent id。账本里记监工 id；工人 id 之后用 `paseo ls --label task=T3` 查到再补上。同样用后台 `watch.sh <监工id>` 守候。监工比脚本多做的事：工人中途停下、问了 brief 里已有答案的问题、或没做完就收工时，催它继续。
 
 #### 派工纪律
 
 - 永远显式指定模型（`dispatch.sh` 已保证）。Codex 自己配置的默认模型不一定是工人模型，不写模型就可能派错。
-- 从 paseo agent 里开出来的 agent 都是你的 subagent，默认落在**你所在的 workspace**，`--cwd` 不生效。所以工人默认与主脑共用同一份工作区。它们会留在你的 subagent 列表里，detach 是用户的手势，不要替用户做。
+- 从 paseo agent 里开出来的 agent 都是你的 subagent，默认落在**你所在的 workspace**，`--cwd` 不生效。所以工人改代码时默认与主脑共用同一份工作区，各自的临时产出靠工作文件夹分开。它们会留在你的 subagent 列表里，detach 是用户的手势，不要替用户做。
 - 并发：文件范围不相交才可同时派，且同时在跑的工人不超过 3 个（并发越高越容易 429）。范围重叠或说不清 → 串行。必须并行改重叠区域时，给 `dispatch.sh` 追加 `--new-workspace worktree --new-branch <名字>`（仅 git 仓库），合并本身另立一个任务。
 - 依赖任务未 `accepted`，后继任务不得派出。
 

@@ -21,9 +21,17 @@ if git -C "$PROJECT" rev-parse --git-dir >/dev/null 2>&1; then
     echo "[ok]   已把 .fable-working/ 加进 .git/info/exclude（仅本地生效）"
   fi
   echo "[ok]   git HEAD: $(git -C "$PROJECT" rev-parse --short HEAD 2>/dev/null || echo '无提交')"
+  if ! git -C "$PROJECT" check-ignore -q .tmp/.fable-working/x 2>/dev/null; then
+    echo '.tmp/.fable-working/' >> "$exclude"
+    echo "[ok]   已把 .tmp/.fable-working/ 加进 .git/info/exclude（仅本地生效）"
+  fi
 else
   echo "[warn] 不是 git 仓库：验收时没有 git diff 可用，也不能用 worktree 隔离"
 fi
+mkdir -p "$PROJECT/.tmp/.fable-working"
+echo "[ok]   工人工作文件夹根: $PROJECT/.tmp/.fable-working"
+existing="$(FW_PROJECT="$PROJECT" bash "$SKILL_DIR/scripts/workdir.sh" list)"
+case "$existing" in "（"*) ;; *) echo "[info] 已有的工作文件夹（派工前对照，同一件事要先问用户是否合并）:"; printf '%s\n' "$existing" | sed 's/^/         /' ;; esac
 
 # 2. 预检 paseo 与模型
 if ! command -v paseo >/dev/null 2>&1; then
